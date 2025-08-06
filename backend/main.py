@@ -22,9 +22,20 @@ os.makedirs(storage_path, exist_ok=True)
 # Sample in-memory contract data used for accrual calculations.
 # In a real application this would come from a database.
 CONTRACTS = [
-    {"id": "1", "principal": 10000.0, "annual_rate": 0.12, "start_date": date(2024, 1, 1)},
-    {"id": "2", "principal": 20000.0, "annual_rate": 0.15, "start_date": date(2024, 2, 15)},
+    {
+        "id": "1",
+        "principal": 10000.0,
+        "annual_rate": 0.12,
+        "start_date": date(2024, 1, 1),
+    },
+    {
+        "id": "2",
+        "principal": 20000.0,
+        "annual_rate": 0.15,
+        "start_date": date(2024, 2, 15),
+    },
 ]
+
 
 @app.post("/uploads")
 async def upload_pdf(file: UploadFile = File(...)):
@@ -51,10 +62,14 @@ def export_accruals(start_date: str, end_date: str):
         start = datetime.strptime(start_date, "%Y-%m-%d").date()
         end = datetime.strptime(end_date, "%Y-%m-%d").date()
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+        raise HTTPException(
+            status_code=400, detail="Invalid date format. Use YYYY-MM-DD"
+        )
 
     if start > end:
-        raise HTTPException(status_code=400, detail="start_date must be before end_date")
+        raise HTTPException(
+            status_code=400, detail="start_date must be before end_date"
+        )
 
     def iter_rows():
         header_buffer = StringIO()
