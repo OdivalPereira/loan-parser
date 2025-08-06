@@ -2,3 +2,6 @@ fastapi
 uvicorn
 redis
 rq
+pdfplumber
+pdf2image
+pytesseract
