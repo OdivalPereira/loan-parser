@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type React from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -22,6 +23,8 @@ export default function Contratos() {
   const [contracts, setContracts] = useState<Contract[]>([])
   const [bankFilter, setBankFilter] = useState('')
   const [dueFilter, setDueFilter] = useState('')
+  const [startExport, setStartExport] = useState('')
+  const [endExport, setEndExport] = useState('')
 
   useEffect(() => {
     fetch('/contracts')
@@ -39,6 +42,23 @@ export default function Contratos() {
       : true
     return matchesBank && matchesDue
   })
+
+  const handleExport = async () => {
+    const params = new URLSearchParams({
+      start_date: startExport,
+      end_date: endExport,
+    })
+    const res = await fetch(`/accruals/export?${params.toString()}`)
+    const blob = await res.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'accruals.csv'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  }
 
   return (
     <div className="p-4 space-y-4">
@@ -66,6 +86,37 @@ export default function Contratos() {
             }
           />
         </div>
+      </div>
+      <div className="flex gap-4 items-end">
+        <div className="space-y-2">
+          <Label htmlFor="start">Início</Label>
+          <Input
+            id="start"
+            type="date"
+            value={startExport}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setStartExport(e.target.value)
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="end">Fim</Label>
+          <Input
+            id="end"
+            type="date"
+            value={endExport}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setEndExport(e.target.value)
+            }
+          />
+        </div>
+        <button
+          className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+          onClick={handleExport}
+          disabled={!startExport || !endExport}
+        >
+          Exportar juros
+        </button>
       </div>
       <Table>
         <TableHeader>
