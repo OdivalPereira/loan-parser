@@ -17,9 +17,19 @@ Plataforma para processamento e análise de contratos de empréstimo.
    python3 -m venv .venv
    source .venv/bin/activate
    ```
-2. Instalar dependências:
+2. Instalar dependências do backend:
    ```bash
-   pip install -r requirements.txt
+   pip install -r backend/requirements.txt
+   ```
+3. Iniciar o servidor FastAPI:
+   ```bash
+   uvicorn backend.main:app --reload
+   ```
+
+### Worker
+1. Em outro terminal, iniciar o worker RQ:
+   ```bash
+   python backend/worker.py
    ```
 
 ### Node
