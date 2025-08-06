@@ -1,16 +1,31 @@
 import os
 import uuid
 import csv
-from datetime import datetime
+from datetime import datetime, date
 from io import StringIO
+from typing import List
+
 from fastapi import Depends, FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from redis import Redis
 from rq import Queue
 from sqlalchemy.orm import Session
 
 from .db import SessionLocal
 from .models import Contrato
+
+
+class ContractResponse(BaseModel):
+    id: str
+    bank: str
+    balance: float
+    cet: float
+    dueDate: date
+
+    class Config:
+        orm_mode = True
+
 
 app = FastAPI()
 
@@ -29,6 +44,21 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+@app.get("/contracts", response_model=List[ContractResponse])
+def list_contracts(db: Session = Depends(get_db)):
+    contracts = db.query(Contrato).all()
+    return [
+        ContractResponse(
+            id=str(contract.id),
+            bank=contract.banco,
+            balance=contract.saldo,
+            cet=contract.taxa_anual,
+            dueDate=contract.data_inicio,
+        )
+        for contract in contracts
+    ]
 
 @app.post("/uploads")
 async def upload_pdf(file: UploadFile = File(...)):
