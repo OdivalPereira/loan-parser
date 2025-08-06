@@ -21,7 +21,11 @@ Plataforma para processamento e análise de contratos de empréstimo.
    ```bash
    pip install -r backend/requirements.txt
    ```
-3. Iniciar o servidor FastAPI:
+3. Definir a variável de ambiente `DATABASE_URL` apontando para seu PostgreSQL:
+   ```bash
+   export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
+   ```
+4. Iniciar o servidor FastAPI:
    ```bash
    uvicorn backend.main:app --reload
    ```
