@@ -1,12 +1,16 @@
 import os
 import uuid
 import csv
-from datetime import datetime, date
+from datetime import datetime
 from io import StringIO
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import Depends, FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from redis import Redis
 from rq import Queue
+from sqlalchemy.orm import Session
+
+from .db import SessionLocal
+from .models import Contrato
 
 app = FastAPI()
 
@@ -19,12 +23,12 @@ storage_path = os.environ.get("UPLOAD_DIR", "storage")
 os.makedirs(storage_path, exist_ok=True)
 
 
-# Sample in-memory contract data used for accrual calculations.
-# In a real application this would come from a database.
-CONTRACTS = [
-    {"id": "1", "principal": 10000.0, "annual_rate": 0.12, "start_date": date(2024, 1, 1)},
-    {"id": "2", "principal": 20000.0, "annual_rate": 0.15, "start_date": date(2024, 2, 15)},
-]
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 @app.post("/uploads")
 async def upload_pdf(file: UploadFile = File(...)):
@@ -40,7 +44,7 @@ async def upload_pdf(file: UploadFile = File(...)):
 
 
 @app.get("/accruals/export")
-def export_accruals(start_date: str, end_date: str):
+def export_accruals(start_date: str, end_date: str, db: Session = Depends(get_db)):
     """Export pro-rata interest accruals for contracts within a period.
 
     The interest is calculated using the formula:
@@ -62,21 +66,22 @@ def export_accruals(start_date: str, end_date: str):
         writer.writerow(["contract_id", "principal", "annual_rate", "days", "interest"])
         yield header_buffer.getvalue()
 
-        for contract in CONTRACTS:
-            contract_start = contract["start_date"]
+        contracts = db.query(Contrato).all()
+        for contract in contracts:
+            contract_start = contract.data_inicio
             period_start = max(start, contract_start)
             if period_start > end:
                 continue
             days = (end - period_start).days + 1
-            interest = contract["principal"] * contract["annual_rate"] * days / 365
+            interest = contract.saldo * contract.taxa_anual * days / 365
 
             row_buffer = StringIO()
             writer = csv.writer(row_buffer)
             writer.writerow(
                 [
-                    contract["id"],
-                    f"{contract['principal']:.2f}",
-                    contract["annual_rate"],
+                    contract.id,
+                    f"{contract.saldo:.2f}",
+                    contract.taxa_anual,
                     days,
                     f"{interest:.2f}",
                 ]

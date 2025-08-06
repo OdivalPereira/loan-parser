@@ -2,6 +2,8 @@ fastapi
 uvicorn
 redis
 rq
+sqlalchemy
+psycopg2-binary
 pdfplumber
 pdf2image
 pytesseract
