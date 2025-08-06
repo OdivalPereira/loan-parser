@@ -49,3 +49,5 @@ Verificar o roadmap para detalhes de:
 - Tela de contratos.
 - Exportação de juros.
 
+## Licença
+Este projeto está licenciado sob os termos da [Licença MIT](LICENSE).
