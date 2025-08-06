@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-test-build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: pip install .[dev]
+
+    - name: Run Black
+      run: black --check .
+
+    - name: Run Ruff
+      run: ruff .
+
+    - name: Run tests
+      run: pytest
+
+    - name: Build backend image
+      run: docker build -t loan-parser-backend -f backend/Dockerfile backend
+
+    - name: Build worker image
+      run: docker build -t loan-parser-worker -f backend/worker.Dockerfile backend
