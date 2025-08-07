@@ -3,7 +3,7 @@ import uuid
 import csv
 from datetime import datetime, date
 from io import StringIO
-from typing import List
+from typing import List, Tuple, Iterable
 
 from fastapi import Depends, FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
@@ -13,7 +13,7 @@ from rq import Queue
 from sqlalchemy.orm import Session
 
 from .db import SessionLocal
-from .models import Contrato
+from .models import Contrato, Movimentacao, Extrato
 
 
 class ContractResponse(BaseModel):
@@ -120,3 +120,62 @@ def export_accruals(start_date: str, end_date: str, db: Session = Depends(get_db
 
     headers = {"Content-Disposition": "attachment; filename=accruals.csv"}
     return StreamingResponse(iter_rows(), media_type="text/csv", headers=headers)
+
+
+@app.get("/transactions/export")
+def export_transactions(
+    empresa_id: int,
+    start_date: str,
+    end_date: str,
+    db: Session = Depends(get_db),
+):
+    """Export bank statement movements as accounting entries in SCI TXT layout."""
+
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end = datetime.strptime(end_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+
+    if start > end:
+        raise HTTPException(status_code=400, detail="start_date must be before end_date")
+
+    account_map = {
+        "liberacao": ("111", "211"),
+        "juros": ("631", "111"),
+        "amortizacao": ("211", "111"),
+    }
+
+    def classify(desc: str) -> Tuple[str, str]:
+        d = desc.lower()
+        if "libera" in d:
+            return account_map["liberacao"]
+        if "juros" in d:
+            return account_map["juros"]
+        if "amort" in d:
+            return account_map["amortizacao"]
+        return ("000", "000")
+
+    def iter_lines() -> Iterable[str]:
+        q = (
+            db.query(Movimentacao)
+            .join(Extrato)
+            .join(Contrato)
+            .filter(
+                Contrato.empresa_id == empresa_id,
+                Movimentacao.data_lanc >= start,
+                Movimentacao.data_lanc <= end,
+            )
+            .order_by(Movimentacao.data_lanc)
+        )
+
+        for mov in q.all():
+            debito, credito = classify(mov.descricao or "")
+            valor = mov.valor_debito or mov.valor_credito or 0
+            data = (mov.data_lanc or mov.data_ref or start).strftime("%d/%m/%Y")
+            historico = mov.descricao or ""
+            line = f"{data};{debito};{credito};{valor:.2f};{historico}\n"
+            yield line
+
+    headers = {"Content-Disposition": "attachment; filename=transactions.txt"}
+    return StreamingResponse(iter_lines(), media_type="text/plain", headers=headers)

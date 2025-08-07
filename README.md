@@ -63,5 +63,12 @@ Verificar o roadmap para detalhes de:
 - Tela de contratos.
 - Exportação de juros.
 
+## Importar no SCI Visual
+1. Gere o arquivo de lançamentos via rota `/transactions/export` informando `empresa_id`, `start_date` e `end_date`.
+2. No **SCI Visual**, acesse o menu **Integrações > Importações layout padrão SCI**.
+3. Identifique o número da empresa e a referência.
+4. Em **Importar de**, selecione **TXT Visual Sucessor** e localize o arquivo gerado.
+5. Confirme para concluir a importação dos lançamentos.
+
 ## Licença
 Este projeto está licenciado sob os termos da [Licença MIT](LICENSE).
