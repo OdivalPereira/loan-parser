@@ -1,6 +1,7 @@
 import os
 import uuid
 import csv
+import logging
 from datetime import datetime, date
 from io import StringIO
 from typing import List, Tuple, Iterable
@@ -28,6 +29,7 @@ class ContractResponse(BaseModel):
 
 
 app = FastAPI()
+logger = logging.getLogger(__name__)
 
 redis_host = os.environ.get("REDIS_HOST", "redis")
 redis_port = int(os.environ.get("REDIS_PORT", 6379))
@@ -36,6 +38,7 @@ queue = Queue("uploads", connection=redis_conn)
 
 storage_path = os.environ.get("UPLOAD_DIR", "storage")
 os.makedirs(storage_path, exist_ok=True)
+MAX_UPLOAD_SIZE = int(os.environ.get("MAX_UPLOAD_SIZE", 10 * 1024 * 1024))
 
 
 def get_db():
@@ -62,14 +65,22 @@ def list_contracts(db: Session = Depends(get_db)):
 
 @app.post("/uploads")
 async def upload_pdf(file: UploadFile = File(...)):
+    logger.info("Upload started for file '%s'", file.filename)
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
     file_id = f"{uuid.uuid4()}.pdf"
     dest = os.path.join(storage_path, file_id)
-    content = await file.read()
-    with open(dest, "wb") as f:
-        f.write(content)
+    content = await file.read(MAX_UPLOAD_SIZE + 1)
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail="File too large")
+    try:
+        with open(dest, "wb") as f:
+            f.write(content)
+    except OSError as e:
+        logger.exception("Failed to save uploaded file '%s'", file.filename)
+        raise HTTPException(status_code=500, detail="Failed to save file") from e
     queue.enqueue("tasks.parse_sicoob", dest)
+    logger.info("Upload finished for file '%s' as '%s'", file.filename, file_id)
     return {"id": file_id, "filename": file.filename}
 
 
