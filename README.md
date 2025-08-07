@@ -30,6 +30,19 @@ Plataforma para processamento e análise de contratos de empréstimo.
    uvicorn backend.main:app --reload
    ```
 
+### Testes
+Para executar os testes do backend:
+```bash
+cd backend
+pytest
+```
+
+Para executar os testes do frontend:
+```bash
+cd frontend
+npm test
+```
+
 ### Worker
 1. Em outro terminal, iniciar o worker RQ:
    ```bash
