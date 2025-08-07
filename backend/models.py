@@ -36,7 +36,7 @@ class Extrato(Base):
     contrato_id = Column(Integer, ForeignKey("contratos.id"), nullable=False)
     filepath = Column(String, nullable=False)
     status = Column(String, nullable=False)
-    metadata = Column(JSON, nullable=True)
+    meta = Column("metadata", JSON, nullable=True)
 
     contrato = relationship("Contrato", back_populates="extratos")
     movimentacoes = relationship("Movimentacao", back_populates="extrato")

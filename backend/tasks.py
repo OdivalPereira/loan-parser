@@ -49,7 +49,7 @@ def parse_sicoob(filepath: str, contrato_id: Optional[int] = None) -> Dict[str, 
                 contrato_id=contrato_id,
                 filepath=filepath,
                 status="pendente revisão",
-                metadata={"error": str(exc)},
+                meta={"error": str(exc)},
             )
             session.add(extrato)
             session.commit()
@@ -59,7 +59,7 @@ def parse_sicoob(filepath: str, contrato_id: Optional[int] = None) -> Dict[str, 
             contrato_id=contrato_id,
             filepath=filepath,
             status="importado",
-            metadata={"header": data.get("header")},
+            meta={"header": data.get("header")},
         )
         session.add(extrato)
         session.flush()  # obtain extrato.id
@@ -90,7 +90,7 @@ def parse_sicoob(filepath: str, contrato_id: Optional[int] = None) -> Dict[str, 
             contrato_id=contrato_id,
             filepath=filepath,
             status="erro",
-            metadata={"error": str(exc)},
+            meta={"error": str(exc)},
         )
         session.add(extrato)
         session.commit()

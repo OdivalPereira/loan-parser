@@ -7,3 +7,6 @@ psycopg2-binary
 pdfplumber
 pdf2image
 pytesseract
+pytest
+httpx
+python-multipart
