@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import UploadExtrato from '@/components/UploadExtrato'
 
 interface Contract {
   id: string
@@ -25,6 +26,7 @@ export default function Contratos() {
   const [dueFilter, setDueFilter] = useState('')
   const [startExport, setStartExport] = useState('')
   const [endExport, setEndExport] = useState('')
+  const [uploadContract, setUploadContract] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/contracts')
@@ -121,10 +123,11 @@ export default function Contratos() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Banco</TableHead>
-            <TableHead>Saldo</TableHead>
-            <TableHead>CET</TableHead>
-            <TableHead>Vencimento</TableHead>
+          <TableHead>Banco</TableHead>
+          <TableHead>Saldo</TableHead>
+          <TableHead>CET</TableHead>
+          <TableHead>Vencimento</TableHead>
+          <TableHead>Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -132,17 +135,31 @@ export default function Contratos() {
             <TableRow key={c.id}>
               <TableCell>{c.bank}</TableCell>
               <TableCell>
-                {c.balance.toLocaleString('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                })}
-              </TableCell>
-              <TableCell>{c.cet}%</TableCell>
-              <TableCell>{c.dueDate}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+              {c.balance.toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+              })}
+            </TableCell>
+            <TableCell>{c.cet}%</TableCell>
+            <TableCell>{c.dueDate}</TableCell>
+            <TableCell>
+              <button
+                className="px-2 py-1 bg-green-600 text-white rounded"
+                onClick={() => setUploadContract(c.id)}
+              >
+                Importar Extrato
+              </button>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+    {uploadContract && (
+      <UploadExtrato
+        contractId={uploadContract}
+        onClose={() => setUploadContract(null)}
+      />
+    )}
     </div>
   )
 }
