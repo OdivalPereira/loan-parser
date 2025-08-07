@@ -25,7 +25,12 @@ Plataforma para processamento e análise de contratos de empréstimo.
    ```bash
    export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
    ```
-4. Iniciar o servidor FastAPI:
+4. (Opcional) Configurar o acesso ao Redis via variáveis de ambiente:
+   ```bash
+   export REDIS_HOST=localhost
+   export REDIS_PORT=6379
+   ```
+5. Iniciar o servidor FastAPI:
    ```bash
    uvicorn backend.main:app --reload
    ```
@@ -46,8 +51,9 @@ npm test
 ### Worker
 1. Em outro terminal, iniciar o worker RQ:
    ```bash
-   python backend/worker.py
+   python -m backend.worker
    ```
+   As variáveis `REDIS_HOST` e `REDIS_PORT` também são respeitadas aqui.
 
 ### Node
 1. Instalar dependências do frontend:

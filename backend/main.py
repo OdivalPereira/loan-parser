@@ -9,10 +9,10 @@ from typing import List, Tuple, Iterable
 from fastapi import Depends, FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from redis import Redis
 from rq import Queue
 from sqlalchemy.orm import Session
 
+from backend.config import get_redis
 from .db import SessionLocal
 from .models import Contrato, Movimentacao, Extrato
 
@@ -31,9 +31,7 @@ class ContractResponse(BaseModel):
 app = FastAPI()
 logger = logging.getLogger(__name__)
 
-redis_host = os.environ.get("REDIS_HOST", "redis")
-redis_port = int(os.environ.get("REDIS_PORT", 6379))
-redis_conn = Redis(host=redis_host, port=redis_port)
+redis_conn = get_redis()
 queue = Queue("uploads", connection=redis_conn)
 
 storage_path = os.environ.get("UPLOAD_DIR", "storage")
