@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 
 from .db import Base
@@ -26,3 +26,32 @@ class Contrato(Base):
     data_inicio = Column(Date, nullable=False)
 
     empresa = relationship("Empresa", back_populates="contratos")
+    extratos = relationship("Extrato", back_populates="contrato")
+
+
+class Extrato(Base):
+    __tablename__ = "extratos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    contrato_id = Column(Integer, ForeignKey("contratos.id"), nullable=False)
+    filepath = Column(String, nullable=False)
+    status = Column(String, nullable=False)
+    metadata = Column(JSON, nullable=True)
+
+    contrato = relationship("Contrato", back_populates="extratos")
+    movimentacoes = relationship("Movimentacao", back_populates="extrato")
+
+
+class Movimentacao(Base):
+    __tablename__ = "movimentacoes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    extrato_id = Column(Integer, ForeignKey("extratos.id"), nullable=False)
+    data_ref = Column(Date)
+    data_lanc = Column(Date)
+    descricao = Column(String)
+    valor_debito = Column(Float)
+    valor_credito = Column(Float)
+    saldo = Column(Float)
+
+    extrato = relationship("Extrato", back_populates="movimentacoes")
