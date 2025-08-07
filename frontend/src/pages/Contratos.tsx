@@ -27,6 +27,7 @@ export default function Contratos() {
   const [startExport, setStartExport] = useState('')
   const [endExport, setEndExport] = useState('')
   const [uploadContract, setUploadContract] = useState<string | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
 
   useEffect(() => {
     fetch('/contracts')
@@ -46,20 +47,33 @@ export default function Contratos() {
   })
 
   const handleExport = async () => {
-    const params = new URLSearchParams({
-      start_date: startExport,
-      end_date: endExport,
-    })
-    const res = await fetch(`/accruals/export?${params.toString()}`)
-    const blob = await res.blob()
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'accruals.csv'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
+    setIsExporting(true)
+    console.log('Iniciando exportação', { startExport, endExport })
+    try {
+      const params = new URLSearchParams({
+        start_date: startExport,
+        end_date: endExport,
+      })
+      const res = await fetch(`/accruals/export?${params.toString()}`)
+      if (!res.ok) {
+        throw new Error('Resposta não OK')
+      }
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'accruals.csv'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      console.log('Exportação concluída com sucesso')
+    } catch (err) {
+      console.error('Erro ao exportar juros', err)
+      alert('Não foi possível exportar os juros. Tente novamente mais tarde.')
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   return (
@@ -115,9 +129,9 @@ export default function Contratos() {
         <button
           className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
           onClick={handleExport}
-          disabled={!startExport || !endExport}
+          disabled={!startExport || !endExport || isExporting}
         >
-          Exportar juros
+          {isExporting ? 'Exportando...' : 'Exportar juros'}
         </button>
       </div>
       <Table>
