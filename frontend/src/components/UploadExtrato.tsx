@@ -9,6 +9,7 @@ interface Props {
 export default function UploadExtrato({ contractId, onClose }: Props) {
   const [file, setFile] = useState<File | null>(null)
   const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -18,15 +19,28 @@ export default function UploadExtrato({ contractId, onClose }: Props) {
     formData.append('contract_id', contractId)
     try {
       setStatus('uploading')
+      setErrorMessage(null)
       const res = await api('/uploads', {
         method: 'POST',
         body: formData,
       })
-      if (!res.ok) throw new Error('Upload failed')
+      if (!res.ok) {
+        let message = 'Erro ao enviar.'
+        try {
+          const data = await res.json()
+          message = data.detail ?? message
+        } catch {
+          // ignore
+        }
+        throw new Error(message)
+      }
       setStatus('success')
     } catch (err) {
       console.error(err)
       setStatus('error')
+      setErrorMessage(
+        err instanceof Error ? err.message : 'Erro ao enviar.'
+      )
     }
   }
 
@@ -57,7 +71,9 @@ export default function UploadExtrato({ contractId, onClose }: Props) {
         </div>
         {status === 'uploading' && <p>Enviando...</p>}
         {status === 'success' && <p className="text-green-600">Arquivo enviado!</p>}
-        {status === 'error' && <p className="text-red-600">Erro ao enviar.</p>}
+        {status === 'error' && (
+          <p className="text-red-600">{errorMessage ?? 'Erro ao enviar.'}</p>
+        )}
       </form>
     </div>
   )

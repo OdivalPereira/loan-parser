@@ -57,7 +57,14 @@ export default function Contratos() {
       })
       const res = await api(`/accruals/export?${params.toString()}`)
       if (!res.ok) {
-        throw new Error('Resposta não OK')
+        let message = 'Não foi possível exportar os juros. Tente novamente mais tarde.'
+        try {
+          const data = await res.json()
+          message = data.detail ?? message
+        } catch {
+          // ignore
+        }
+        throw new Error(message)
       }
       const blob = await res.blob()
       const url = window.URL.createObjectURL(blob)
@@ -71,7 +78,11 @@ export default function Contratos() {
       console.log('Exportação concluída com sucesso')
     } catch (err) {
       console.error('Erro ao exportar juros', err)
-      alert('Não foi possível exportar os juros. Tente novamente mais tarde.')
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Não foi possível exportar os juros. Tente novamente mais tarde.'
+      alert(message)
     } finally {
       setIsExporting(false)
     }
