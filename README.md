@@ -61,11 +61,17 @@ npm test
    npm install
    ```
 
-### Redis e PostgreSQL via Docker
-1. Subir serviços com Docker:
+### Docker Compose
+1. Subir backend, frontend, Redis e PostgreSQL:
    ```bash
-   docker run --name redis -p 6379:6379 -d redis
-   docker run --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres
+   docker-compose up --build
+   ```
+   Backend em http://localhost:8000
+   Frontend em http://localhost:5173
+
+2. Parar e remover containers:
+   ```bash
+   docker-compose down
    ```
 
 ## Padrões de Commit
