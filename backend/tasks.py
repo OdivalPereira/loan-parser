@@ -9,7 +9,8 @@ from typing import Any, Dict, List, Optional
 
 from .db import SessionLocal
 from .models import Contrato, Extrato, Movimentacao
-from .parsers import parse
+from .parsers import ParserNotFoundError, parse
+from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,9 @@ def parse_sicoob(filepath: str, contract_id: Optional[int] = None) -> Dict[str, 
 
         try:
             data = parse("sicoob", pdf_bytes)
+        except ParserNotFoundError as exc:
+            logger.error("Parser não encontrado: %s", exc)
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
         except Exception as exc:
             logger.error("Falha ao interpretar extrato %s: %s", filepath, exc)
             extrato = Extrato(
@@ -99,6 +103,8 @@ def parse_sicoob(filepath: str, contract_id: Optional[int] = None) -> Dict[str, 
 
     except Exception as exc:  # pragma: no cover - defensive
         session.rollback()
+        if isinstance(exc, HTTPException):
+            raise
         logger.exception("Erro ao salvar extrato %s", filepath)
         extrato = Extrato(
             contrato_id=contract_id,
