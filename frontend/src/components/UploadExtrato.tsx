@@ -1,5 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { api } from '@/lib/api'
+
+interface ExtratoStatus {
+  id: number
+  status: string
+}
 
 interface Props {
   contractId: string
@@ -10,17 +15,30 @@ export default function UploadExtrato({ contractId, onClose }: Props) {
   const [file, setFile] = useState<File | null>(null)
   const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [extratos, setExtratos] = useState<ExtratoStatus[]>([])
+
+  const loadExtratos = useCallback(() => {
+    api('/uploads')
+      .then((res) => res.json())
+      .then(setExtratos)
+      .catch((err) => console.error('Failed to load uploads', err))
+  }, [])
+
+  useEffect(() => {
+    loadExtratos()
+    const interval = setInterval(loadExtratos, 2000)
+    return () => clearInterval(interval)
+  }, [loadExtratos])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!file) return
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('contract_id', contractId)
     try {
       setStatus('uploading')
       setErrorMessage(null)
-      const res = await api('/uploads', {
+      const res = await api(`/uploads?contract_id=${contractId}`, {
         method: 'POST',
         body: formData,
       })
@@ -35,6 +53,7 @@ export default function UploadExtrato({ contractId, onClose }: Props) {
         throw new Error(message)
       }
       setStatus('success')
+      loadExtratos()
     } catch (err) {
       console.error(err)
       setStatus('error')
@@ -74,6 +93,25 @@ export default function UploadExtrato({ contractId, onClose }: Props) {
         {status === 'error' && (
           <p className="text-red-600">{errorMessage ?? 'Erro ao enviar.'}</p>
         )}
+        <div className="mt-4">
+          <h3 className="font-bold mb-2">Histórico de Importações</h3>
+          <table className="w-full text-sm">
+            <thead>
+              <tr>
+                <th className="text-left">ID</th>
+                <th className="text-left">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {extratos.map((e) => (
+                <tr key={e.id}>
+                  <td>{e.id}</td>
+                  <td>{e.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </form>
     </div>
   )

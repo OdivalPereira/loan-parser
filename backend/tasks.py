@@ -28,7 +28,11 @@ def _parse_date(value: Optional[str]):
         return None
 
 
-def parse_sicoob(filepath: str, contract_id: Optional[int] = None) -> Dict[str, Any]:
+def parse_sicoob(
+    filepath: str,
+    contract_id: Optional[int] = None,
+    extrato_id: Optional[int] = None,
+) -> Dict[str, Any]:
     """Parse a Sicoob PDF and persist its data to the database.
 
     On success an ``Extrato`` record is created with status ``importado`` and all
@@ -38,19 +42,36 @@ def parse_sicoob(filepath: str, contract_id: Optional[int] = None) -> Dict[str, 
     """
 
     session = SessionLocal()
+    extrato: Optional[Extrato] = None
 
     try:
+        if extrato_id is not None:
+            extrato = session.get(Extrato, extrato_id)
+            if extrato is not None:
+                filepath = extrato.filepath
+                contract_id = extrato.contrato_id
         if contract_id is not None:
             contrato = session.get(Contrato, contract_id)
             if contrato is None:
                 logger.error("Contrato %s não encontrado", contract_id)
-                extrato = Extrato(
-                    contrato_id=None,
-                    filepath=filepath,
-                    status="erro",
-                    meta={"error": "Contrato não encontrado", "contract_id": contract_id},
-                )
-                session.add(extrato)
+                if extrato is None:
+                    extrato = Extrato(
+                        contrato_id=None,
+                        filepath=filepath,
+                        status="erro",
+                        meta={
+                            "error": "Contrato não encontrado",
+                            "contract_id": contract_id,
+                        },
+                    )
+                    session.add(extrato)
+                else:
+                    extrato.status = "erro"
+                    extrato.meta = {
+                        "error": "Contrato não encontrado",
+                        "contract_id": contract_id,
+                    }
+                    extrato.contrato_id = None
                 session.commit()
                 return {"status": "erro", "error": "Contrato não encontrado"}
 
@@ -66,24 +87,33 @@ def parse_sicoob(filepath: str, contract_id: Optional[int] = None) -> Dict[str, 
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except Exception as exc:
             logger.error("Falha ao interpretar extrato %s: %s", filepath, exc)
-            extrato = Extrato(
-                contrato_id=contract_id,
-                filepath=filepath,
-                status="pendente revisão",
-                meta={"error": str(exc)},
-            )
-            session.add(extrato)
+            if extrato is None:
+                extrato = Extrato(
+                    contrato_id=contract_id,
+                    filepath=filepath,
+                    status="pendente revisão",
+                    meta={"error": str(exc)},
+                )
+                session.add(extrato)
+            else:
+                extrato.status = "pendente revisão"
+                extrato.meta = {"error": str(exc)}
             session.commit()
             return {"status": "pendente revisão", "error": str(exc)}
 
-        extrato = Extrato(
-            contrato_id=contract_id,
-            filepath=filepath,
-            status="importado",
-            meta={"header": data.get("header")},
-        )
-        session.add(extrato)
-        session.flush()  # obtain extrato.id
+        if extrato is None:
+            extrato = Extrato(
+                contrato_id=contract_id,
+                filepath=filepath,
+                status="importado",
+                meta={"header": data.get("header")},
+            )
+            session.add(extrato)
+            session.flush()  # obtain extrato.id
+        else:
+            extrato.status = "importado"
+            extrato.meta = {"header": data.get("header")}
+            session.add(extrato)
 
         transactions: List[Dict[str, Any]] = data.get("transactions", [])
         for tx in transactions:
@@ -109,13 +139,18 @@ def parse_sicoob(filepath: str, contract_id: Optional[int] = None) -> Dict[str, 
         if isinstance(exc, HTTPException):
             raise
         logger.exception("Erro ao salvar extrato %s", filepath)
-        extrato = Extrato(
-            contrato_id=contract_id,
-            filepath=filepath,
-            status="erro",
-            meta={"error": str(exc)},
-        )
-        session.add(extrato)
+        if extrato is None:
+            extrato = Extrato(
+                contrato_id=contract_id,
+                filepath=filepath,
+                status="erro",
+                meta={"error": str(exc)},
+            )
+            session.add(extrato)
+        else:
+            extrato.status = "erro"
+            extrato.meta = {"error": str(exc)}
+            session.add(extrato)
         session.commit()
         return {"status": "erro", "error": str(exc)}
     finally:

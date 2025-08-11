@@ -86,8 +86,17 @@ def test_upload_enqueues_with_contract_id(tmp_path, monkeypatch):
         )
 
     assert response.status_code == 200
+    data = response.json()
     assert called["name"] == "tasks.parse_sicoob"
-    assert called["args"][1] == 123
+    assert called["args"][2] == data["extrato_id"]
+
+    # verify extrato persisted with status 'fila'
+    res = client.get("/uploads")
+    assert res.status_code == 200
+    uploads = res.json()
+    assert any(
+        u["id"] == data["extrato_id"] and u["status"] == "fila" for u in uploads
+    )
 
 
 def test_upload_rejects_non_pdf(tmp_path):

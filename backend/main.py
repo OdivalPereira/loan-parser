@@ -63,6 +63,16 @@ class ExtratoResponse(BaseModel):
         orm_mode = True
 
 
+class UploadStatusResponse(BaseModel):
+    id: int
+    contrato_id: int | None = None
+    status: str
+    meta: dict | None = None
+
+    class Config:
+        orm_mode = True
+
+
 app = FastAPI()
 logger = logging.getLogger(__name__)
 
@@ -234,6 +244,7 @@ async def upload_pdf(
     contract_id: int,
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     logger.info("Upload started for file '%s'", file.filename)
     if file.content_type != "application/pdf":
@@ -249,9 +260,27 @@ async def upload_pdf(
     except OSError as e:
         logger.exception("Failed to save uploaded file '%s'", file.filename)
         raise HTTPException(status_code=500, detail="Failed to save file") from e
-    queue.enqueue("tasks.parse_sicoob", dest, contract_id)
+
+    extrato = Extrato(
+        contrato_id=contract_id,
+        filepath=dest,
+        status="fila",
+    )
+    db.add(extrato)
+    db.commit()
+    db.refresh(extrato)
+
+    queue.enqueue("tasks.parse_sicoob", dest, contract_id, extrato.id)
     logger.info("Upload finished for file '%s' as '%s'", file.filename, file_id)
-    return {"id": file_id, "filename": file.filename}
+    return {"id": file_id, "filename": file.filename, "extrato_id": extrato.id}
+
+
+@app.get("/uploads", response_model=List[UploadStatusResponse])
+def list_uploads(
+    db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)
+):
+    extratos = db.query(Extrato).order_by(Extrato.id.desc()).all()
+    return extratos
 
 
 @app.get("/accruals/export")
