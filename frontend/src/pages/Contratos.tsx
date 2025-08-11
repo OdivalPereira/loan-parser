@@ -21,7 +21,11 @@ interface Contract {
   dueDate: string
 }
 
-export default function Contratos() {
+export default function Contratos({
+  onViewExtratos,
+}: {
+  onViewExtratos?: (id: string) => void
+}) {
   const [contracts, setContracts] = useState<Contract[]>([])
   const [bankFilter, setBankFilter] = useState('')
   const [dueFilter, setDueFilter] = useState('')
@@ -29,12 +33,26 @@ export default function Contratos() {
   const [endExport, setEndExport] = useState('')
   const [uploadContract, setUploadContract] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+  const [formOpen, setFormOpen] = useState(false)
+  const [editing, setEditing] = useState<Contract | null>(null)
+  const [form, setForm] = useState({
+    empresaId: '',
+    numero: '',
+    bank: '',
+    balance: '',
+    cet: '',
+    dueDate: '',
+  })
 
-  useEffect(() => {
+  const loadContracts = () => {
     api('/contracts')
       .then((res) => res.json())
       .then(setContracts)
       .catch((err) => console.error('Failed to load contracts', err))
+  }
+
+  useEffect(() => {
+    loadContracts()
   }, [])
 
   const filtered = contracts.filter((c) => {
@@ -88,9 +106,66 @@ export default function Contratos() {
     }
   }
 
+  const openNew = () => {
+    setEditing(null)
+    setForm({
+      empresaId: '',
+      numero: '',
+      bank: '',
+      balance: '',
+      cet: '',
+      dueDate: '',
+    })
+    setFormOpen(true)
+  }
+
+  const openEdit = (c: Contract) => {
+    setEditing(c)
+    setForm({
+      empresaId: '',
+      numero: '',
+      bank: c.bank,
+      balance: String(c.balance),
+      cet: String(c.cet),
+      dueDate: c.dueDate,
+    })
+    setFormOpen(true)
+  }
+
+  const updateForm = (field: string, value: string) =>
+    setForm((f) => ({ ...f, [field]: value }))
+
+  const handleFormSubmit = async () => {
+    const payload = {
+      empresa_id: Number(form.empresaId),
+      numero: form.numero,
+      bank: form.bank,
+      balance: parseFloat(form.balance),
+      cet: parseFloat(form.cet),
+      dueDate: form.dueDate,
+    }
+    const method = editing ? 'PUT' : 'POST'
+    const url = editing ? `/contracts/${editing.id}` : '/contracts'
+    await api(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    setFormOpen(false)
+    loadContracts()
+  }
+
   return (
     <div className="p-4 space-y-4">
-      <h1 className="text-2xl font-bold">Contratos</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Contratos</h1>
+        <button
+          className="px-4 py-2 bg-green-600 text-white rounded"
+          onClick={openNew}
+        >
+          Novo Contrato
+        </button>
+      </div>
       <div className="flex gap-4">
         <div className="space-y-2">
           <Label htmlFor="bank">Banco</Label>
@@ -169,12 +244,26 @@ export default function Contratos() {
             <TableCell>{c.cet}%</TableCell>
             <TableCell>{c.dueDate}</TableCell>
             <TableCell>
-              <button
-                className="px-2 py-1 bg-green-600 text-white rounded"
-                onClick={() => setUploadContract(c.id)}
-              >
-                Importar Extrato
-              </button>
+              <div className="flex gap-2">
+                <button
+                  className="px-2 py-1 bg-blue-600 text-white rounded"
+                  onClick={() => onViewExtratos?.(c.id)}
+                >
+                  Extratos
+                </button>
+                <button
+                  className="px-2 py-1 bg-yellow-600 text-white rounded"
+                  onClick={() => openEdit(c)}
+                >
+                  Editar
+                </button>
+                <button
+                  className="px-2 py-1 bg-green-600 text-white rounded"
+                  onClick={() => setUploadContract(c.id)}
+                >
+                  Importar Extrato
+                </button>
+              </div>
             </TableCell>
           </TableRow>
         ))}
@@ -185,6 +274,78 @@ export default function Contratos() {
         contractId={uploadContract}
         onClose={() => setUploadContract(null)}
       />
+    )}
+    {formOpen && (
+      <div className="p-4 border space-y-2">
+        <h2 className="text-xl font-bold">
+          {editing ? 'Editar' : 'Novo'} Contrato
+        </h2>
+        <div className="space-y-2">
+          <Label htmlFor="empresa">Empresa ID</Label>
+          <Input
+            id="empresa"
+            value={form.empresaId}
+            onChange={(e) => updateForm('empresaId', e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="numero">Número</Label>
+          <Input
+            id="numero"
+            value={form.numero}
+            onChange={(e) => updateForm('numero', e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="bank-form">Banco</Label>
+          <Input
+            id="bank-form"
+            value={form.bank}
+            onChange={(e) => updateForm('bank', e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="balance-form">Saldo</Label>
+          <Input
+            id="balance-form"
+            type="number"
+            value={form.balance}
+            onChange={(e) => updateForm('balance', e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="cet-form">CET</Label>
+          <Input
+            id="cet-form"
+            type="number"
+            value={form.cet}
+            onChange={(e) => updateForm('cet', e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="due-form">Data</Label>
+          <Input
+            id="due-form"
+            type="date"
+            value={form.dueDate}
+            onChange={(e) => updateForm('dueDate', e.target.value)}
+          />
+        </div>
+        <div className="flex gap-2 pt-2">
+          <button
+            className="px-2 py-1 bg-blue-600 text-white rounded"
+            onClick={handleFormSubmit}
+          >
+            Salvar
+          </button>
+          <button
+            className="px-2 py-1 bg-gray-300 rounded"
+            onClick={() => setFormOpen(false)}
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
     )}
     </div>
   )

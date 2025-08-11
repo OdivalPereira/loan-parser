@@ -10,7 +10,7 @@ vi.mock('@/lib/api', () => ({
 
 describe('Contratos', () => {
   it('renderiza título', () => {
-    render(<Contratos />)
+    render(<Contratos onViewExtratos={() => {}} />)
     expect(screen.getByText('Contratos')).toBeInTheDocument()
   })
 })
