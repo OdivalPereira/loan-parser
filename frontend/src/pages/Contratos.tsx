@@ -31,6 +31,10 @@ export default function Contratos({
   const [dueFilter, setDueFilter] = useState('')
   const [startExport, setStartExport] = useState('')
   const [endExport, setEndExport] = useState('')
+  const [empresaExport, setEmpresaExport] = useState('')
+  const [transStart, setTransStart] = useState('')
+  const [transEnd, setTransEnd] = useState('')
+  const [isTransExporting, setIsTransExporting] = useState(false)
   const [uploadContract, setUploadContract] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
@@ -103,6 +107,47 @@ export default function Contratos({
       alert(message)
     } finally {
       setIsExporting(false)
+    }
+  }
+
+  const handleTransactionsExport = async () => {
+    setIsTransExporting(true)
+    try {
+      const params = new URLSearchParams({
+        empresa_id: empresaExport,
+        start_date: transStart,
+        end_date: transEnd,
+      })
+      const res = await api(`/transactions/export?${params.toString()}`)
+      if (!res.ok) {
+        let message =
+          'Não foi possível exportar as transações. Tente novamente mais tarde.'
+        try {
+          const data = await res.json()
+          message = data.detail ?? message
+        } catch {
+          // ignore
+        }
+        throw new Error(message)
+      }
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'transactions.txt'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Erro ao exportar transações', err)
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Não foi possível exportar as transações. Tente novamente mais tarde.'
+      alert(message)
+    } finally {
+      setIsTransExporting(false)
     }
   }
 
@@ -219,6 +264,49 @@ export default function Contratos({
           disabled={!startExport || !endExport || isExporting}
         >
           {isExporting ? 'Exportando...' : 'Exportar juros'}
+        </button>
+      </div>
+      <div className="flex gap-4 items-end">
+        <div className="space-y-2">
+          <Label htmlFor="empresa-export">Empresa ID</Label>
+          <Input
+            id="empresa-export"
+            value={empresaExport}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setEmpresaExport(e.target.value)
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="start-trans">Início</Label>
+          <Input
+            id="start-trans"
+            type="date"
+            value={transStart}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setTransStart(e.target.value)
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="end-trans">Fim</Label>
+          <Input
+            id="end-trans"
+            type="date"
+            value={transEnd}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setTransEnd(e.target.value)
+            }
+          />
+        </div>
+        <button
+          className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+          onClick={handleTransactionsExport}
+          disabled={
+            !empresaExport || !transStart || !transEnd || isTransExporting
+          }
+        >
+          {isTransExporting ? 'Exportando...' : 'Exportar transações'}
         </button>
       </div>
       <Table>

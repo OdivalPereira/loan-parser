@@ -32,7 +32,7 @@ export default function Login({ onLogin }: Props) {
       const data = await res.json()
       localStorage.setItem('token', data.access_token)
       onLogin(data.access_token)
-    } catch (err) {
+    } catch {
       setError('Falha no login')
     } finally {
       setLoading(false)
