@@ -10,3 +10,5 @@ pytesseract
 pytest
 httpx
 python-multipart
+python-jose[cryptography]
+passlib[bcrypt]

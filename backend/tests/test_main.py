@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.main import app, get_db
+from backend.main import app, get_db, get_current_user
 from backend.db import Base
 from backend.models import Empresa, Contrato, Extrato, Movimentacao
 
@@ -29,6 +29,13 @@ def override_get_db():
 
 
 app.dependency_overrides[get_db] = override_get_db
+
+
+def override_current_user():
+    return {"username": "admin"}
+
+
+app.dependency_overrides[get_current_user] = override_current_user
 client = TestClient(app)
 
 

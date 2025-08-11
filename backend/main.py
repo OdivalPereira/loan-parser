@@ -2,15 +2,18 @@ import os
 import uuid
 import csv
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from io import StringIO
 from typing import List, Iterable
 
 from fastapi import Depends, FastAPI, UploadFile, File, HTTPException
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from rq import Queue
 from sqlalchemy.orm import Session
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 
 from backend.config import get_redis
 from .db import SessionLocal
@@ -39,6 +42,65 @@ storage_path = os.environ.get("UPLOAD_DIR", "storage")
 os.makedirs(storage_path, exist_ok=True)
 MAX_UPLOAD_SIZE = int(os.environ.get("MAX_UPLOAD_SIZE", 10 * 1024 * 1024))
 
+SECRET_KEY = os.environ.get("SECRET_KEY", "secret")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+fake_user = {"username": "admin", "hashed_password": pwd_context.hash("admin")}
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def authenticate_user(username: str, password: str):
+    if username != fake_user["username"]:
+        return False
+    if not verify_password(password, fake_user["hashed_password"]):
+        return False
+    return fake_user
+
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (
+        expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str | None = payload.get("sub")
+        if username != fake_user["username"]:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    return {"username": username}
+
+
+@app.post("/token")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token = create_access_token(data={"sub": user["username"]})
+    return {"access_token": access_token, "token_type": "bearer"}
+
 
 def get_db():
     db = SessionLocal()
@@ -63,7 +125,11 @@ def list_contracts(db: Session = Depends(get_db)):
     ]
 
 @app.post("/uploads")
-async def upload_pdf(contract_id: int, file: UploadFile = File(...)):
+async def upload_pdf(
+    contract_id: int,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
     logger.info("Upload started for file '%s'", file.filename)
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
@@ -84,7 +150,12 @@ async def upload_pdf(contract_id: int, file: UploadFile = File(...)):
 
 
 @app.get("/accruals/export")
-def export_accruals(start_date: str, end_date: str, db: Session = Depends(get_db)):
+def export_accruals(
+    start_date: str,
+    end_date: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
     """Export pro-rata interest accruals for contracts within a period.
 
     The interest is calculated using the formula:
@@ -142,6 +213,7 @@ def export_transactions(
     start_date: str,
     end_date: str,
     db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     """Export bank statement movements as accounting entries in SCI TXT layout."""
 
