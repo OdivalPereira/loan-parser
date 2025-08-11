@@ -4,7 +4,7 @@ import csv
 import logging
 from datetime import datetime, date
 from io import StringIO
-from typing import List, Tuple, Iterable
+from typing import List, Iterable
 
 from fastapi import Depends, FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from backend.config import get_redis
 from .db import SessionLocal
 from .models import Contrato, Movimentacao, Extrato
+from .rules import classify
 
 
 class ContractResponse(BaseModel):
@@ -149,21 +150,6 @@ def export_transactions(
     if start > end:
         raise HTTPException(status_code=400, detail="start_date must be before end_date")
 
-    account_map = {
-        "liberacao": ("111", "211"),
-        "juros": ("631", "111"),
-        "amortizacao": ("211", "111"),
-    }
-
-    def classify(desc: str) -> Tuple[str, str]:
-        d = desc.lower()
-        if "libera" in d:
-            return account_map["liberacao"]
-        if "juros" in d:
-            return account_map["juros"]
-        if "amort" in d:
-            return account_map["amortizacao"]
-        return ("000", "000")
 
     def iter_lines() -> Iterable[str]:
         q = (

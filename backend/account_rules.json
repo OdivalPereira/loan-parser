@@ -1,0 +1,12 @@
+{
+  "account_map": {
+    "liberacao": ["111", "211"],
+    "juros": ["631", "111"],
+    "amortizacao": ["211", "111"]
+  },
+  "classify_rules": [
+    {"keyword": "libera", "account": "liberacao"},
+    {"keyword": "juros", "account": "juros"},
+    {"keyword": "amort", "account": "amortizacao"}
+  ]
+}
