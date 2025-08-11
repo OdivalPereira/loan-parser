@@ -21,12 +21,43 @@ from .models import Contrato, Movimentacao, Extrato
 from .rules import classify
 
 
+class ContractBase(BaseModel):
+    empresa_id: int
+    numero: str
+    bank: str
+    balance: float
+    cet: float
+    dueDate: date
+
+
 class ContractResponse(BaseModel):
     id: str
     bank: str
     balance: float
     cet: float
     dueDate: date
+
+    class Config:
+        orm_mode = True
+
+
+class ContractCreate(ContractBase):
+    pass
+
+
+class ContractUpdate(BaseModel):
+    empresa_id: int | None = None
+    numero: str | None = None
+    bank: str | None = None
+    balance: float | None = None
+    cet: float | None = None
+    dueDate: date | None = None
+
+
+class ExtratoResponse(BaseModel):
+    id: int
+    status: str
+    meta: dict | None = None
 
     class Config:
         orm_mode = True
@@ -123,6 +154,80 @@ def list_contracts(db: Session = Depends(get_db)):
         )
         for contract in contracts
     ]
+
+
+@app.post("/contracts", response_model=ContractResponse, status_code=201)
+def create_contract(contract: ContractCreate, db: Session = Depends(get_db)):
+    model = Contrato(
+        empresa_id=contract.empresa_id,
+        numero=contract.numero,
+        banco=contract.bank,
+        saldo=contract.balance,
+        taxa_anual=contract.cet,
+        data_inicio=contract.dueDate,
+    )
+    db.add(model)
+    db.commit()
+    db.refresh(model)
+    return ContractResponse(
+        id=str(model.id),
+        bank=model.banco,
+        balance=model.saldo,
+        cet=model.taxa_anual,
+        dueDate=model.data_inicio,
+    )
+
+
+@app.put("/contracts/{contract_id}", response_model=ContractResponse)
+def update_contract(
+    contract_id: int, data: ContractUpdate, db: Session = Depends(get_db)
+):
+    contract = db.get(Contrato, contract_id)
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contract not found")
+    if data.empresa_id is not None:
+        contract.empresa_id = data.empresa_id
+    if data.numero is not None:
+        contract.numero = data.numero
+    if data.bank is not None:
+        contract.banco = data.bank
+    if data.balance is not None:
+        contract.saldo = data.balance
+    if data.cet is not None:
+        contract.taxa_anual = data.cet
+    if data.dueDate is not None:
+        contract.data_inicio = data.dueDate
+    db.commit()
+    db.refresh(contract)
+    return ContractResponse(
+        id=str(contract.id),
+        bank=contract.banco,
+        balance=contract.saldo,
+        cet=contract.taxa_anual,
+        dueDate=contract.data_inicio,
+    )
+
+
+@app.delete("/contracts/{contract_id}")
+def delete_contract(contract_id: int, db: Session = Depends(get_db)):
+    contract = db.get(Contrato, contract_id)
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contract not found")
+    db.delete(contract)
+    db.commit()
+    return {"ok": True}
+
+
+@app.get(
+    "/contracts/{contract_id}/extratos", response_model=List[ExtratoResponse]
+)
+def list_extratos(contract_id: int, db: Session = Depends(get_db)):
+    extratos = (
+        db.query(Extrato)
+        .filter(Extrato.contrato_id == contract_id)
+        .all()
+    )
+    return extratos
 
 @app.post("/uploads")
 async def upload_pdf(

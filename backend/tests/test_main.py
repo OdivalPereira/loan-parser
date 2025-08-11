@@ -170,3 +170,42 @@ def test_transactions_export_invalid_date():
     )
 
     assert response.status_code == 400
+
+
+def test_contract_crud_and_extratos():
+    session = TestingSessionLocal()
+    empresa = Empresa(nome="NewCo", cnpj="999")
+    session.add(empresa)
+    session.commit()
+    session.refresh(empresa)
+    session.close()
+
+    payload = {
+        "empresa_id": empresa.id,
+        "numero": "1",
+        "bank": "Sicoob",
+        "balance": 100.0,
+        "cet": 0.1,
+        "dueDate": "2023-01-01",
+    }
+    res = client.post("/contracts", json=payload)
+    assert res.status_code == 201
+    contract_id = res.json()["id"]
+
+    res = client.put(f"/contracts/{contract_id}", json={"bank": "Itau"})
+    assert res.status_code == 200
+    assert res.json()["bank"] == "Itau"
+
+    session = TestingSessionLocal()
+    extrato = Extrato(contrato_id=int(contract_id), filepath="dummy", status="ok")
+    session.add(extrato)
+    session.commit()
+    session.close()
+
+    res = client.get(f"/contracts/{contract_id}/extratos")
+    assert res.status_code == 200
+    assert len(res.json()) == 1
+
+    res = client.delete(f"/contracts/{contract_id}")
+    assert res.status_code == 200
+    assert res.json() == {"ok": True}
