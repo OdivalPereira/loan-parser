@@ -2,6 +2,11 @@ from importlib import import_module
 import pkgutil
 from typing import Callable, Dict
 
+
+class ParserNotFoundError(ValueError):
+    """Raised when a requested parser is not registered."""
+
+
 _parsers: Dict[str, Callable[[bytes], dict]] = {}
 
 
@@ -14,7 +19,10 @@ def register(name: str):
 
 
 def get(name: str) -> Callable[[bytes], dict]:
-    return _parsers[name]
+    try:
+        return _parsers[name]
+    except KeyError as exc:  # pragma: no cover - defensive
+        raise ParserNotFoundError(f"Parser '{name}' not found") from exc
 
 
 def parse(name: str, pdf_bytes: bytes) -> dict:
