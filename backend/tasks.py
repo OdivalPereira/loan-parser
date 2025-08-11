@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 from .db import SessionLocal
 from .models import Contrato, Extrato, Movimentacao
@@ -38,7 +37,6 @@ def parse_sicoob(filepath: str, contract_id: Optional[int] = None) -> Dict[str, 
     mark the ``Extrato`` as ``erro``.
     """
 
-    pdf_bytes = Path(filepath).read_bytes()
     session = SessionLocal()
 
     try:
@@ -57,7 +55,12 @@ def parse_sicoob(filepath: str, contract_id: Optional[int] = None) -> Dict[str, 
                 return {"status": "erro", "error": "Contrato não encontrado"}
 
         try:
-            data = parse("sicoob", pdf_bytes)
+            with open(filepath, "rb") as f:
+                def _iter_file(file_obj, chunk_size: int = 65536) -> Iterable[bytes]:
+                    while chunk := file_obj.read(chunk_size):
+                        yield chunk
+
+                data = parse("sicoob", _iter_file(f))
         except ParserNotFoundError as exc:
             logger.error("Parser não encontrado: %s", exc)
             raise HTTPException(status_code=404, detail=str(exc)) from exc

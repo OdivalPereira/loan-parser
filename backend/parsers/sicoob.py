@@ -1,12 +1,22 @@
 import io
 import re
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Iterable, Union, BinaryIO
 
 from pdf2image import convert_from_bytes
 import pdfplumber
 from pytesseract import image_to_string
 
 from . import register
+
+
+def _ensure_bytes(pdf_source: Union[bytes, BinaryIO, Iterable[bytes]]) -> bytes:
+    """Coerce various PDF inputs to raw bytes."""
+
+    if isinstance(pdf_source, (bytes, bytearray)):
+        return bytes(pdf_source)
+    if hasattr(pdf_source, "read"):
+        return pdf_source.read()
+    return b"".join(pdf_source)
 
 
 def _parse_currency(value: str) -> Optional[float]:
@@ -28,12 +38,15 @@ def _parse_currency(value: str) -> Optional[float]:
 
 
 @register("sicoob")
-def parse(pdf_bytes: bytes) -> Dict[str, List[Dict[str, Optional[float]]]]:
-    """Parse Sicoob loan contract PDF bytes into structured data.
+def parse(pdf_source: Union[bytes, BinaryIO, Iterable[bytes]]) -> Dict[str, List[Dict[str, Optional[float]]]]:
+    """Parse Sicoob loan contract PDF data into structured information.
 
-    The parser first attempts to extract text using pdfplumber. If the PDF
-    contains only images, it falls back to OCR using Tesseract.
+    The input may be raw bytes, a file-like object, or an iterable of byte
+    chunks. The parser first attempts to extract text using pdfplumber. If the
+    PDF contains only images, it falls back to OCR using Tesseract.
     """
+
+    pdf_bytes = _ensure_bytes(pdf_source)
 
     with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
         text = "\n".join(page.extract_text() or "" for page in pdf.pages)
