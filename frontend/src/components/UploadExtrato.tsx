@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { api } from '@/lib/api'
 
 interface Props {
   contractId: string
@@ -17,7 +18,7 @@ export default function UploadExtrato({ contractId, onClose }: Props) {
     formData.append('contract_id', contractId)
     try {
       setStatus('uploading')
-      const res = await fetch('/uploads', {
+      const res = await api('/uploads', {
         method: 'POST',
         body: formData,
       })

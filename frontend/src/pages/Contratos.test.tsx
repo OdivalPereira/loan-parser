@@ -1,12 +1,12 @@
-import { beforeEach, vi, describe, it, expect } from 'vitest'
+import { vi, describe, it, expect } from 'vitest'
 import '@testing-library/jest-dom/vitest'
 import { render, screen } from '@testing-library/react'
 
 import Contratos from './Contratos'
 
-beforeEach(() => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: () => Promise.resolve([]) }))
-})
+vi.mock('@/lib/api', () => ({
+  api: vi.fn().mockResolvedValue({ json: () => Promise.resolve([]) }),
+}))
 
 describe('Contratos', () => {
   it('renderiza título', () => {
