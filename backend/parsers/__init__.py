@@ -1,6 +1,6 @@
 from importlib import import_module
 import pkgutil
-from typing import Callable, Dict, Iterable, BinaryIO, Union
+from typing import Callable, Dict, Iterable, BinaryIO, Union, Protocol
 
 
 class ParserNotFoundError(ValueError):
@@ -9,18 +9,24 @@ class ParserNotFoundError(ValueError):
 
 ParserInput = Union[bytes, BinaryIO, Iterable[bytes]]
 
-_parsers: Dict[str, Callable[[ParserInput], dict]] = {}
+
+class Parser(Protocol):
+    def __call__(self, pdf_stream: ParserInput) -> dict:  # pragma: no cover - interface
+        """Parse raw PDF data into structured information."""
+
+
+_parsers: Dict[str, Parser] = {}
 
 
 def register(name: str):
-    def decorator(func: Callable[[ParserInput], dict]):
+    def decorator(func: Parser):
         _parsers[name] = func
         return func
 
     return decorator
 
 
-def get(name: str) -> Callable[[ParserInput], dict]:
+def get(name: str) -> Parser:
     try:
         return _parsers[name]
     except KeyError as exc:  # pragma: no cover - defensive
