@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .db import SessionLocal
-from .models import Extrato, Movimentacao
+from .models import Contrato, Extrato, Movimentacao
 from .parsers import parse
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ def _parse_date(value: Optional[str]):
         return None
 
 
-def parse_sicoob(filepath: str, contrato_id: Optional[int] = None) -> Dict[str, Any]:
+def parse_sicoob(filepath: str, contract_id: Optional[int] = None) -> Dict[str, Any]:
     """Parse a Sicoob PDF and persist its data to the database.
 
     On success an ``Extrato`` record is created with status ``importado`` and all
@@ -41,12 +41,26 @@ def parse_sicoob(filepath: str, contrato_id: Optional[int] = None) -> Dict[str, 
     session = SessionLocal()
 
     try:
+        if contract_id is not None:
+            contrato = session.get(Contrato, contract_id)
+            if contrato is None:
+                logger.error("Contrato %s não encontrado", contract_id)
+                extrato = Extrato(
+                    contrato_id=None,
+                    filepath=filepath,
+                    status="erro",
+                    meta={"error": "Contrato não encontrado", "contract_id": contract_id},
+                )
+                session.add(extrato)
+                session.commit()
+                return {"status": "erro", "error": "Contrato não encontrado"}
+
         try:
             data = parse("sicoob", pdf_bytes)
         except Exception as exc:
             logger.error("Falha ao interpretar extrato %s: %s", filepath, exc)
             extrato = Extrato(
-                contrato_id=contrato_id,
+                contrato_id=contract_id,
                 filepath=filepath,
                 status="pendente revisão",
                 meta={"error": str(exc)},
@@ -56,7 +70,7 @@ def parse_sicoob(filepath: str, contrato_id: Optional[int] = None) -> Dict[str, 
             return {"status": "pendente revisão", "error": str(exc)}
 
         extrato = Extrato(
-            contrato_id=contrato_id,
+            contrato_id=contract_id,
             filepath=filepath,
             status="importado",
             meta={"header": data.get("header")},
@@ -87,7 +101,7 @@ def parse_sicoob(filepath: str, contrato_id: Optional[int] = None) -> Dict[str, 
         session.rollback()
         logger.exception("Erro ao salvar extrato %s", filepath)
         extrato = Extrato(
-            contrato_id=contrato_id,
+            contrato_id=contract_id,
             filepath=filepath,
             status="erro",
             meta={"error": str(exc)},

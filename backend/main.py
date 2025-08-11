@@ -62,7 +62,7 @@ def list_contracts(db: Session = Depends(get_db)):
     ]
 
 @app.post("/uploads")
-async def upload_pdf(file: UploadFile = File(...)):
+async def upload_pdf(contract_id: int, file: UploadFile = File(...)):
     logger.info("Upload started for file '%s'", file.filename)
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
@@ -77,7 +77,7 @@ async def upload_pdf(file: UploadFile = File(...)):
     except OSError as e:
         logger.exception("Failed to save uploaded file '%s'", file.filename)
         raise HTTPException(status_code=500, detail="Failed to save file") from e
-    queue.enqueue("tasks.parse_sicoob", dest)
+    queue.enqueue("tasks.parse_sicoob", dest, contract_id)
     logger.info("Upload finished for file '%s' as '%s'", file.filename, file_id)
     return {"id": file_id, "filename": file.filename}
 

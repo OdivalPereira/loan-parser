@@ -26,20 +26,20 @@ class Contrato(Base):
     data_inicio = Column(Date, nullable=False)
 
     empresa = relationship("Empresa", back_populates="contratos")
-    extratos = relationship("Extrato", back_populates="contrato")
+    extratos = relationship("Extrato", back_populates="contrato", cascade="all, delete-orphan")
 
 
 class Extrato(Base):
     __tablename__ = "extratos"
 
     id = Column(Integer, primary_key=True, index=True)
-    contrato_id = Column(Integer, ForeignKey("contratos.id"), nullable=False)
+    contrato_id = Column(Integer, ForeignKey("contratos.id"), nullable=True)
     filepath = Column(String, nullable=False)
     status = Column(String, nullable=False)
     meta = Column("metadata", JSON, nullable=True)
 
     contrato = relationship("Contrato", back_populates="extratos")
-    movimentacoes = relationship("Movimentacao", back_populates="extrato")
+    movimentacoes = relationship("Movimentacao", back_populates="extrato", cascade="all, delete-orphan")
 
 
 class Movimentacao(Base):
