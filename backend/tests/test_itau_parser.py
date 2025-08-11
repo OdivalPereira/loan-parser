@@ -1,12 +1,11 @@
 import io
-import io
 import sys
 from pathlib import Path
 
 # Ensure the backend package is importable
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from parsers.sicoob import parse
+from parsers.itau import parse
 import pytest
 
 
@@ -31,7 +30,7 @@ class DummyPDF:
 
 TEXT_CONTENT = "\n".join(
     [
-        "Sicoob",
+        "Itau",
         "Extrato de Conta Corrente",
         "Agencia: 1234 Conta: 56789-0",
         "Data Ref Data Lanc Descricao Valor Debito Valor Credito Saldo",
@@ -45,11 +44,11 @@ def test_parse_text_pdf(monkeypatch):
     def fake_open(*args, **kwargs):
         return DummyPDF(TEXT_CONTENT)
 
-    monkeypatch.setattr("parsers.sicoob.pdfplumber.open", fake_open)
+    monkeypatch.setattr("parsers.itau.pdfplumber.open", fake_open)
 
     result = parse(io.BytesIO(b""))
 
-    assert result["header"][0] == "Sicoob"
+    assert result["header"][0] == "Itau"
     assert len(result["transactions"]) == 2
     first = result["transactions"][0]
     assert first["data_ref"] == "01/01/2023"
@@ -68,9 +67,9 @@ def test_parse_image_pdf(monkeypatch):
     def fake_image_to_string(*args, **kwargs):
         return TEXT_CONTENT
 
-    monkeypatch.setattr("parsers.sicoob.pdfplumber.open", fake_open)
-    monkeypatch.setattr("parsers.sicoob.convert_from_bytes", fake_convert_from_bytes)
-    monkeypatch.setattr("parsers.sicoob.image_to_string", fake_image_to_string)
+    monkeypatch.setattr("parsers.itau.pdfplumber.open", fake_open)
+    monkeypatch.setattr("parsers.itau.convert_from_bytes", fake_convert_from_bytes)
+    monkeypatch.setattr("parsers.itau.image_to_string", fake_image_to_string)
 
     def gen():
         yield b""
@@ -85,7 +84,7 @@ def test_parse_missing_header(monkeypatch):
     def fake_open(*args, **kwargs):
         return DummyPDF("irrelevant text")
 
-    monkeypatch.setattr("parsers.sicoob.pdfplumber.open", fake_open)
+    monkeypatch.setattr("parsers.itau.pdfplumber.open", fake_open)
 
     with pytest.raises(ValueError):
         parse(io.BytesIO(b""))
@@ -102,7 +101,7 @@ def test_parse_invalid_line(monkeypatch):
     def fake_open(*args, **kwargs):
         return DummyPDF(text)
 
-    monkeypatch.setattr("parsers.sicoob.pdfplumber.open", fake_open)
+    monkeypatch.setattr("parsers.itau.pdfplumber.open", fake_open)
 
     with pytest.raises(ValueError):
         parse(io.BytesIO(b""))
