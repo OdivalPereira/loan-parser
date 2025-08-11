@@ -11,6 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import UploadExtrato from '@/components/UploadExtrato'
+import { api } from '@/lib/api'
 
 interface Contract {
   id: string
@@ -30,7 +31,7 @@ export default function Contratos() {
   const [isExporting, setIsExporting] = useState(false)
 
   useEffect(() => {
-    fetch('/contracts')
+    api('/contracts')
       .then((res) => res.json())
       .then(setContracts)
       .catch((err) => console.error('Failed to load contracts', err))
@@ -54,7 +55,7 @@ export default function Contratos() {
         start_date: startExport,
         end_date: endExport,
       })
-      const res = await fetch(`/accruals/export?${params.toString()}`)
+      const res = await api(`/accruals/export?${params.toString()}`)
       if (!res.ok) {
         throw new Error('Resposta não OK')
       }
