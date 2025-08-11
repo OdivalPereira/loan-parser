@@ -1,3 +1,4 @@
+import io
 import sys
 from pathlib import Path
 
@@ -44,7 +45,7 @@ def test_parse_text_pdf(monkeypatch):
 
     monkeypatch.setattr("parsers.sicoob.pdfplumber.open", fake_open)
 
-    result = parse(b"")
+    result = parse(io.BytesIO(b""))
 
     assert result["header"][0] == "Sicoob"
     assert len(result["transactions"]) == 2
@@ -69,7 +70,10 @@ def test_parse_image_pdf(monkeypatch):
     monkeypatch.setattr("parsers.sicoob.convert_from_bytes", fake_convert_from_bytes)
     monkeypatch.setattr("parsers.sicoob.image_to_string", fake_image_to_string)
 
-    result = parse(b"")
+    def gen():
+        yield b""
+
+    result = parse(gen())
 
     assert len(result["transactions"]) == 2
     assert result["transactions"][0]["data_ref"] == "01/01/2023"
