@@ -6,6 +6,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from parsers.sicoob import parse
+import pytest
 
 
 class DummyPage:
@@ -77,3 +78,30 @@ def test_parse_image_pdf(monkeypatch):
 
     assert len(result["transactions"]) == 2
     assert result["transactions"][0]["data_ref"] == "01/01/2023"
+
+
+def test_parse_missing_header(monkeypatch):
+    def fake_open(*args, **kwargs):
+        return DummyPDF("irrelevant text")
+
+    monkeypatch.setattr("parsers.sicoob.pdfplumber.open", fake_open)
+
+    with pytest.raises(ValueError):
+        parse(io.BytesIO(b""))
+
+
+def test_parse_invalid_line(monkeypatch):
+    text = "\n".join(
+        [
+            "Data Ref Data Lanc Descricao Valor Debito Valor Credito Saldo",
+            "01/01/2023 01/01/2023 linha invalida",
+        ]
+    )
+
+    def fake_open(*args, **kwargs):
+        return DummyPDF(text)
+
+    monkeypatch.setattr("parsers.sicoob.pdfplumber.open", fake_open)
+
+    with pytest.raises(ValueError):
+        parse(io.BytesIO(b""))

@@ -108,3 +108,43 @@ def test_parse_sicoob_unknown_parser(tmp_path, monkeypatch):
         tasks.parse_sicoob(str(pdf_path), contract_id=None)
 
     assert exc_info.value.status_code == 404
+
+
+def test_parse_sicoob_parser_error_marks_pending_review(tmp_path, monkeypatch):
+    Session = _setup_db(tmp_path)
+    monkeypatch.setattr(tasks, "SessionLocal", Session)
+
+    # create required Empresa and Contrato
+    session = Session()
+    empresa = Empresa(nome="ACME", cnpj="123")
+    session.add(empresa)
+    session.flush()
+    contrato = Contrato(
+        empresa_id=empresa.id,
+        numero="1",
+        banco="Sicoob",
+        saldo=0.0,
+        taxa_anual=0.0,
+        data_inicio=date(2023, 1, 1),
+    )
+    session.add(contrato)
+    session.commit()
+    contrato_id = contrato.id
+    session.close()
+
+    def fake_parse(*args, **kwargs):
+        raise ValueError("bad format")
+
+    monkeypatch.setattr(tasks, "parse", fake_parse)
+
+    pdf_path = Path(tmp_path) / "dummy.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4")
+
+    result = tasks.parse_sicoob(str(pdf_path), contract_id=contrato_id)
+    assert result["status"] == "pendente revisão"
+
+    session = Session()
+    extrato = session.query(Extrato).one()
+    session.close()
+
+    assert extrato.status == "pendente revisão"
