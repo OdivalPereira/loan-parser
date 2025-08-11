@@ -106,7 +106,11 @@ def export_accruals(start_date: str, end_date: str, db: Session = Depends(get_db
         writer.writerow(["contract_id", "principal", "annual_rate", "days", "interest"])
         yield header_buffer.getvalue()
 
-        contracts = db.query(Contrato).all()
+        contracts = (
+            db.query(Contrato)
+            .filter(Contrato.data_inicio <= end)
+            .yield_per(100)
+        )
         for contract in contracts:
             contract_start = contract.data_inicio
             period_start = max(start, contract_start)
